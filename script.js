@@ -353,7 +353,7 @@ function renderMarketSimulator(root, config) {
           else if (cl < o) { candlePattern = 'bearish candle'; candleBias = -1; }
         }
       } catch(e) {}
-      const durationMs = SESSION_MS;
+      const durationMs = appName === 'Kenny' ? SESSION_MS : (5 + Math.random() * 5) * 60 * 1000;
       return {
         symbol: c.symbol,
         direction: (c.momentum + candleBias * 0.35) >= 0 ? 'LONG' : 'SHORT',
