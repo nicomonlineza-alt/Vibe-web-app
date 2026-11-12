@@ -4,13 +4,25 @@ A web application for Nicom Online, built collaboratively with Vibe.
 
 ## Overview
 
-Nicom-AI is a single-page application with one homepage. All features are launched
-as tiles from the main page, and each opens in a central app window (about two
-thirds of the screen) with a close button at the top left.
+Single-page application. All features launch as tiles from the homepage and open
+in a central app window (about two thirds of the screen) with a close button at
+the top left.
 
-### Features
+### Stock Market Joe
 
-- Stock Market Joe: market snapshot with simulated live prices and sparkline charts.
+A paper trading feature powered by live market data from the Binance public API
+(no API key required):
+
+1. On launch it scans liquid USDT pairs and selects the 5 with the strongest
+   24-hour momentum.
+2. Each trade is opened as LONG (positive momentum) or SHORT (negative momentum)
+   with a holding period randomly set between 5 and 10 minutes.
+3. Prices refresh every 5 seconds and each trade shows live P&L and a countdown.
+4. Trades close automatically at the end of their holding period, and all open
+   trades are force-closed at the 10-minute session cut-off.
+5. A session summary reports total paper profit and the number of winning trades.
+
+All trades are paper trades. No real money is involved.
 
 ## Stack
 
