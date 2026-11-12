@@ -1,14 +1,44 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#080d15" />
-    <meta name="description" content="Nicom-AI Market Intelligence: market observations, technical indicators and an adaptive paper-learning journal." />
-    <title>Nicom-AI | Market Intelligence</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nicom-AI | Intelligent Solutions for Your Business</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="navbar">
+    <div class="nav-inner">
+      <a href="#" class="logo">Nicom<span class="accent">-AI</span></a>
+    </div>
+  </header>
+
+  <main class="home">
+    <h1>Welcome to <span class="accent">Nicom-AI</span></h1>
+    <p class="tagline">All of your AI tools, one homepage. Select a feature below to launch it.</p>
+
+    <section id="features" class="features">
+      <button class="feature-tile" data-app="stock-joe">
+        <span class="tile-icon">📈</span>
+        <span class="tile-title">Stock Market Joe</span>
+        <span class="tile-desc">Live paper trading with pattern learning.</span>
+      </button>
+
+</section>
+  </main>
+
+  <!-- Central app window -->
+  <div id="app-overlay" class="app-overlay hidden" role="dialog" aria-modal="true">
+    <div id="app-window" class="app-window">
+      <button id="app-close" class="app-close" aria-label="Close app">&#10005;</button>
+      <div id="app-content" class="app-content"></div>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>Nicom-AI &copy; 2026 Nicom Online &middot; <a href="https://www.nicomonline.co.za">nicomonline.co.za</a></p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
 </html>
