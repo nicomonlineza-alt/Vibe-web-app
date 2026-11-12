@@ -417,7 +417,16 @@ function renderMarketSimulator(root, config) {
         closedAny = true;
       }
     });
-    if (closedAny) saveMemory(memory);
+    if (closedAny) {
+      saveMemory(memory, memoryKey);
+      if (config.scoreKey) {
+        trades.filter(function (t) { return t.closed && !t.scored; }).forEach(function (t) {
+          confidence = Math.max(0, Math.min(100, confidence + (t.pnl > 0 ? 2 : -2)));
+          t.scored = true;
+        });
+        localStorage.setItem(config.scoreKey, String(confidence));
+      }
+    }
   }
 
   function sessionDone() {
