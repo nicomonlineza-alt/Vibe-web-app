@@ -467,9 +467,9 @@ function renderStockMarketJoe(root) {
   });
 }
 // ---- Feature: Social Sally (live research + AI edition) --------------------
-// Captures company details, researches the industry and area LIVE via the
-// Wikipedia API, then requests an AI-written strategic analysis through the
-// serverless function /api/ask (Mistral model, key held server-side).
+// Captures a rich company profile, researches the industry and area LIVE via
+// the Wikipedia API, then requests an AI-written strategic analysis through
+// the serverless function /api/ask (Mistral model, key held server-side).
 
 const SALLY_KEY = 'nicom-ai-sally-profiles-v1';
 
@@ -532,7 +532,16 @@ async function sallyAiAnalysis(p, ind, findings) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        company: { industry: ind.label, area: p.area, website: p.website, description: p.description },
+        company: {
+          name: p.name,
+          industry: ind.label,
+          area: p.area,
+          website: p.website,
+          description: p.description,
+          customers: p.customers,
+          currentMarketing: p.currentMarketing,
+          goal: p.goal
+        },
         research: findings
       })
     });
@@ -560,7 +569,7 @@ function sallyAiBlock(aiAnalysis) {
 function renderSocialSally(root) {
   root.innerHTML =
     '<h2>Social Sally</h2>' +
-    '<p class="subtitle">Sales and marketing advisor with live research and AI analysis. Answer four questions and Sally will research your industry and area, then build your growth plan.</p>' +
+    '<p class="subtitle">Sales and marketing advisor with live research and AI analysis. Answer eight questions and Sally will research your industry and area, then build your growth plan.</p>' +
     '<div id="sally-body"></div>';
   renderSallyForm(root.querySelector('#sally-body'));
 }
@@ -568,28 +577,61 @@ function renderSocialSally(root) {
 function renderSallyForm(body) {
   body.innerHTML =
     '<form id="sally-form" class="sally-form">' +
-    '  <label>1. What industry is your company in?' +
+    '  <label>1. What is your company called?' +
+    '    <input id="sally-name" type="text" placeholder="e.g. Cape Comfort Plumbing" required /></label>' +
+    '  <label>2. What industry are you in?' +
     '    <select id="sally-industry">' +
     Object.keys(SALLY_INDUSTRIES).map(function (k) {
       return '<option value="' + k + '">' + SALLY_INDUSTRIES[k].label + '</option>';
     }).join('') +
     '    </select></label>' +
-    '  <label>2. Area of operation (town, city or region)' +
+    '  <label>3. Where do you operate? (town, city or region)' +
     '    <input id="sally-area" type="text" placeholder="e.g. Cape Town, Western Cape" required /></label>' +
-    '  <label>3. Website address (or "none yet")' +
+    '  <label>4. Who are your ideal customers?' +
+    '    <select id="sally-customers">' +
+    '      <option value="Local households and families">Local households and families</option>' +
+    '      <option value="Other businesses (B2B)">Other businesses (B2B)</option>' +
+    '      <option value="Young adults shopping online">Young adults shopping online</option>' +
+    '      <option value="High-income professionals">High-income professionals</option>' +
+    '      <option value="Property owners and managers">Property owners and managers</option>' +
+    '      <option value="Government or schools">Government or schools</option>' +
+    '      <option value="A broad mix of everyone">A broad mix of everyone</option>' +
+    '    </select></label>' +
+    '  <label>5. What products or services do you sell, and what makes you different from competitors?' +
+    '    <textarea id="sally-desc" rows="4" placeholder="What do you sell, to whom, and why should they choose you?" required></textarea></label>' +
+    '  <label>6. How do you currently market your business?' +
+    '    <select id="sally-current">' +
+    '      <option value="Not marketing yet">Not marketing yet</option>' +
+    '      <option value="Word of mouth and referrals only">Word of mouth and referrals only</option>' +
+    '      <option value="Social media only">Social media only</option>' +
+    '      <option value="Website and Google only">Website and Google only</option>' +
+    '      <option value="Paid advertising">Paid advertising</option>' +
+    '      <option value="A mix of several channels">A mix of several channels</option>' +
+    '    </select></label>' +
+    '  <label>7. What is your main goal for the next six months?' +
+    '    <select id="sally-goal">' +
+    '      <option value="More leads and sales">More leads and sales</option>' +
+    '      <option value="Build brand awareness in my area">Build brand awareness in my area</option>' +
+    '      <option value="Grow online sales">Grow online sales</option>' +
+    '      <option value="Win bigger or corporate clients">Win bigger or corporate clients</option>' +
+    '      <option value="Retain more existing customers">Retain more existing customers</option>' +
+    '    </select></label>' +
+    '  <label>8. Website address (optional, or "none yet")' +
     '    <input id="sally-website" type="text" placeholder="e.g. www.mycompany.co.za" /></label>' +
-    '  <label>4. Describe your business services or products' +
-    '    <textarea id="sally-desc" rows="4" placeholder="What do you sell, to whom, and what makes you different?" required></textarea></label>' +
     '  <button type="submit" class="joe-btn sally-go">Research and build my growth plan</button>' +
     '</form>';
 
   body.querySelector('#sally-form').addEventListener('submit', function (e) {
     e.preventDefault();
     const profile = {
+      name: body.querySelector('#sally-name').value.trim(),
       industry: body.querySelector('#sally-industry').value,
       area: body.querySelector('#sally-area').value.trim(),
-      website: body.querySelector('#sally-website').value.trim(),
+      customers: body.querySelector('#sally-customers').value,
       description: body.querySelector('#sally-desc').value.trim(),
+      currentMarketing: body.querySelector('#sally-current').value,
+      goal: body.querySelector('#sally-goal').value,
+      website: body.querySelector('#sally-website').value.trim(),
       createdAt: new Date().toISOString()
     };
     sallySaveProfile(profile);
@@ -600,11 +642,13 @@ function renderSallyForm(body) {
 async function renderSallyPlan(body, p) {
   const ind = SALLY_INDUSTRIES[p.industry] || SALLY_INDUSTRIES.other;
   const desc = p.description;
+  const companyName = p.name || 'Your company';
   const firstWords = desc.split(/[,.]/)[0].trim();
 
   body.innerHTML =
     '<div class="sally-plan">' +
-    '  <div class="sally-header"><strong>Growth plan for:</strong> ' + firstWords + ' &mdash; ' + p.area + '</div>' +
+    '  <div class="sally-header"><strong>Growth plan for ' + companyName + ':</strong> ' + firstWords + ' &mdash; ' + p.area +
+    '  <br/><span class="joe-meta">Goal: ' + p.goal + ' &middot; Ideal customers: ' + p.customers + ' &middot; Current marketing: ' + p.currentMarketing + '</span></div>' +
     '  <div class="joe-status" id="sally-research-status">Researching your industry and area from live sources...</div>' +
     '  <div id="sally-research"></div>' +
     '  <div id="sally-plan-body"></div>' +
@@ -646,10 +690,10 @@ async function renderSallyPlan(body, p) {
   planEl.innerHTML =
     sallyAiBlock(aiAnalysis) +
     '<h3>1. Industry snapshot</h3>' +
-    '<p>You operate in the ' + ind.label.toLowerCase() + ' sector in ' + p.area + '. Use the live findings above as' +
-    '  factual context for your market. Growth in this sector is driven by visibility, trust and repeat business.' +
-    '  World-class companies win by being the most findable, the most recommended and the most consistent provider' +
-    '  in their local market before expanding outward.</p>' +
+    '<p>' + companyName + ' operates in the ' + ind.label.toLowerCase() + ' sector in ' + p.area + ', serving ' + p.customers.toLowerCase() + '.' +
+    '  Your stated goal is to ' + p.goal.toLowerCase() + '. Use the live findings above as factual context for your market.' +
+    '  Growth in this sector is driven by visibility, trust and repeat business. World-class companies win by being the' +
+    '  most findable, the most recommended and the most consistent provider in their local market before expanding outward.</p>' +
 
     '  <h3>2. Competitor landscape</h3>' +
     '  <p>Your competitors will typically include:</p><ul>' +
@@ -667,14 +711,15 @@ async function renderSallyPlan(body, p) {
     '  <h3>4. Positioning to become world class</h3>' +
     '  <p>Define one clear promise based on what your customers value most: "' + desc.slice(0, 120) +
     (desc.length > 120 ? '..."' : '"') +
-    '  Position your company as the specialist, not the generalist: publish your process, guarantee your standards,' +
+    '  Position ' + companyName + ' as the specialist, not the generalist: publish your process, guarantee your standards,' +
     '  and collect proof (reviews, case studies, results) from every single client.</p>' +
 
-    '  <h3>5. Marketing channels to activate</h3><ul>' +
+    '  <h3>5. Marketing channels to activate</h3>' +
+    '  <p>Given that you currently rely on: ' + p.currentMarketing.toLowerCase() + ', prioritise:</p><ul>' +
     ind.channels.map(function (c) { return '<li>' + c + '</li>'; }).join('') +
     '  </ul>' +
 
-    '  <h3>6. Ninety-day action plan</h3>' +
+    '  <h3>6. Ninety-day action plan (aimed at: ' + p.goal.toLowerCase() + ')</h3>' +
     '  <ul>' +
     '    <li><strong>Days 1-14:</strong> Complete your Google Business Profile, fix or launch your website landing page,' +
     '    set up or clean up your main social profile, and gather your first 10 reviews from existing customers.</li>' +

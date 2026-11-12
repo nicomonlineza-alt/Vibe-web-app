@@ -24,14 +24,19 @@ export default async function handler(req, res) {
     'You receive a company profile and live research findings. Produce a concise, ' +
     'specific and actionable growth strategy in plain language with these sections: ' +
     'Market Position, Competitor Angle, Local Opportunities, Brand Promise, ' +
-    'Channel Priorities, 90-Day Roadmap, KPIs to Track. Be concrete and reference ' +
-    'the company area and services. Maximum 600 words. Plain text with section headings.';
+    'Channel Priorities, 90-Day Roadmap, KPIs to Track. Be concrete, reference the ' +
+    'company name, area, ideal customers, current marketing situation and stated goal. ' +
+    'Maximum 600 words. Plain text with section headings.';
 
   const user = 'Company profile:\n' +
+    'Name: ' + (company.name || 'Not provided') + '\n' +
     'Industry: ' + company.industry + '\n' +
     'Area of operation: ' + company.area + '\n' +
+    'Ideal customers: ' + (company.customers || 'Not specified') + '\n' +
     'Website: ' + (company.website || 'none yet') + '\n' +
-    'Services description: ' + company.description + '\n\n' +
+    'Services description: ' + company.description + '\n' +
+    'Current marketing: ' + (company.currentMarketing || 'Not specified') + '\n' +
+    'Six-month goal: ' + (company.goal || 'Not specified') + '\n\n' +
     'Live research findings:\n' + (research && research.length
       ? research.map(function (r) { return '- ' + r.title + ': ' + r.extract; }).join('\n')
       : 'None available.');
