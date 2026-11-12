@@ -466,10 +466,10 @@ function renderStockMarketJoe(root) {
     statusEl.textContent = 'Could not reach the live market data source: ' + e.message + '. Please check your connection and relaunch.';
   });
 }
-// ---- Feature: Social Sally (live research edition) ------------------------
-// Captures company details, then researches the industry and area LIVE via
-// the Wikipedia API (browser-accessible, no key required) and builds the
-// growth plan around the real findings.
+// ---- Feature: Social Sally (live research + AI edition) --------------------
+// Captures company details, researches the industry and area LIVE via the
+// Wikipedia API, then requests an AI-written strategic analysis through the
+// serverless function /api/ask (Mistral model, key held server-side).
 
 const SALLY_KEY = 'nicom-ai-sally-profiles-v1';
 
@@ -525,10 +525,42 @@ async function sallyResearch(p) {
   return results;
 }
 
+// AI strategic analysis via the serverless function (key held server-side)
+async function sallyAiAnalysis(p, ind, findings) {
+  try {
+    const res = await fetch('/api/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        company: { industry: ind.label, area: p.area, website: p.website, description: p.description },
+        research: findings
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.analysis || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function sallyAiBlock(aiAnalysis) {
+  if (!aiAnalysis) {
+    return '<p class="joe-note">AI analysis is not active yet. It activates automatically once MISTRAL_API_KEY is set in the Vercel project settings (see README).</p>';
+  }
+  return '<h3>Sally\'s AI strategic analysis</h3><div class="sally-ai">' +
+    aiAnalysis.split('\n').map(function (line) {
+      const trimmed = line.trim();
+      if (!trimmed) return '';
+      if (/^[A-Z0-9 &,:-]+$/.test(trimmed) && trimmed.length < 60) return '<h4>' + trimmed + '</h4>';
+      return '<p>' + trimmed + '</p>';
+    }).join('') + '</div>';
+}
+
 function renderSocialSally(root) {
   root.innerHTML =
     '<h2>Social Sally</h2>' +
-    '<p class="subtitle">Sales and marketing advisor with live research. Answer four questions and Sally will research your industry and area, then build your growth plan.</p>' +
+    '<p class="subtitle">Sales and marketing advisor with live research and AI analysis. Answer four questions and Sally will research your industry and area, then build your growth plan.</p>' +
     '<div id="sally-body"></div>';
   renderSallyForm(root.querySelector('#sally-body'));
 }
@@ -594,7 +626,7 @@ async function renderSallyPlan(body, p) {
     statusEl.textContent = 'Live research was unavailable (' + e.message + '). The plan below uses Sally\'s built-in industry knowledge.';
   }
   if (findings.length) {
-    statusEl.textContent = 'Live research complete: ' + findings.length + ' sources found.';
+    statusEl.textContent = 'Live research complete: ' + findings.length + ' sources found. Requesting AI analysis...';
     researchEl.innerHTML =
       '<h3>Live research findings</h3>' +
       findings.map(function (f) {
@@ -606,7 +638,13 @@ async function renderSallyPlan(body, p) {
     statusEl.textContent = 'No live sources found for this industry and area combination.';
   }
 
+  const aiAnalysis = await sallyAiAnalysis(p, ind, findings);
+  if (aiAnalysis) {
+    statusEl.textContent = statusEl.textContent.replace('Requesting AI analysis...', 'AI analysis complete.');
+  }
+
   planEl.innerHTML =
+    sallyAiBlock(aiAnalysis) +
     '<h3>1. Industry snapshot</h3>' +
     '<p>You operate in the ' + ind.label.toLowerCase() + ' sector in ' + p.area + '. Use the live findings above as' +
     '  factual context for your market. Growth in this sector is driven by visibility, trust and repeat business.' +
