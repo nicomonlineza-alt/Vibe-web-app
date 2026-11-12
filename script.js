@@ -185,7 +185,7 @@ function renderMarketSimulator(root, config) {
   resetBtn.addEventListener('click', function () {
     if (!confirm('Reset all of Joe\'s learned knowledge? This deletes the stored trade patterns and cannot be undone.')) return;
     memory = [];
-    try { localStorage.removeItem(memoryKey); } catch (e) {}
+    try { localStorage.removeItem(memoryKey); if (config.scoreKey) { confidence = 50; localStorage.setItem(config.scoreKey, '50'); } } catch (e) {}
     renderInsights();
     statusEl.textContent = 'Joe\'s knowledge has been reset. He will learn from scratch from the next trades.';
   });
@@ -199,7 +199,7 @@ function renderMarketSimulator(root, config) {
     });
     saveMemory(memory, memoryKey);
     const backup = {
-      app: 'Nicom-AI Stock Market Joe',
+      app: 'Nicom-AI Stock Market ' + appName,
       exportedAt: new Date().toISOString(),
       tradeCount: memory.length,
       trades: memory
