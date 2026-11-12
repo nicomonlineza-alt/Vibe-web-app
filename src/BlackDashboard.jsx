@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Activity, Clock3, RefreshCw, Search, BarChart3 } from 'lucide-react';
 import './black.css';
 
