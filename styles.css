@@ -43,7 +43,6 @@ body {
 .tile-title { font-size: 1.15rem; font-weight: 600; }
 .tile-desc { color: var(--muted); font-size: 0.92rem; }
 
-/* Central app window: about two thirds of the viewport */
 .app-overlay {
   position: fixed; inset: 0; background: rgba(4, 7, 16, 0.7);
   display: flex; align-items: center; justify-content: center; z-index: 100;
@@ -66,22 +65,34 @@ body {
 
 /* Stock Market Joe */
 .app-content h2 { margin-bottom: 0.25rem; }
-.app-content .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+.app-content .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+.joe-toolbar { display: flex; gap: 0.6rem; margin-bottom: 1.1rem; }
+.joe-btn {
+  background: var(--surface-2); color: var(--text);
+  border: 1px solid rgba(255,255,255,0.15); border-radius: var(--radius);
+  padding: 0.45rem 1rem; font-size: 0.88rem; cursor: pointer;
+}
+.joe-btn:hover { border-color: var(--accent); }
+.joe-btn-danger:hover { border-color: var(--danger); color: var(--danger); }
+.joe-session { display: flex; flex-direction: column; gap: 1rem; }
+.joe-status { color: var(--muted); font-size: 0.95rem; }
+.joe-clock { font-weight: 600; font-size: 1.05rem; }
+.joe-chart-box { background: var(--surface-2); border-radius: var(--radius); padding: 0.85rem 1rem; }
+.joe-chart-title { color: var(--muted); font-size: 0.82rem; margin-bottom: 0.5rem; }
+.joe-chart-box canvas { width: 100%; height: 180px; display: block; }
 .stocks { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem; margin-bottom: 1.25rem; }
 .stock-card { background: var(--surface-2); border-radius: var(--radius); padding: 0.85rem 1rem; }
 .stock-card .sym { font-weight: 700; }
 .stock-card .price { font-size: 1.15rem; margin-top: 0.15rem; }
 .stock-card .up { color: #3ecf8e; }
 .stock-card .down { color: var(--danger); }
-.joe-session { display: flex; flex-direction: column; gap: 1rem; }
-.joe-status { color: var(--muted); font-size: 0.95rem; }
-.joe-clock { font-weight: 600; font-size: 1.05rem; }
 .joe-meta { color: var(--muted); font-size: 0.82rem; }
 .joe-summary { background: var(--surface-2); border-radius: var(--radius); padding: 1rem 1.25rem; font-size: 0.95rem; }
 .stock-card .sym .up, .stock-card .sym .down { font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem; }
 .joe-insights h3 { font-size: 1.05rem; margin-bottom: 0.35rem; }
 .joe-list { margin: 0.35rem 0 0.5rem 1.25rem; color: var(--muted); font-size: 0.88rem; }
 .joe-insights { background: var(--surface-2); border-radius: var(--radius); padding: 1rem 1.25rem; }
+.joe-note { color: var(--muted); font-size: 0.85rem; }
 
 .footer { border-top: 1px solid rgba(255,255,255,0.08); padding: 1.25rem; text-align: center; color: var(--muted); font-size: 0.9rem; }
 .footer a { color: var(--accent); text-decoration: none; }

@@ -43,9 +43,6 @@ closeBtn.addEventListener('click', function () {
 });
 
 // ---- Learning module -----------------------------------------------------
-// Stores completed paper trades in localStorage, extracts pattern features at
-// close, and scores new candidates by similarity to past winners vs losers.
-
 const MEMORY_KEY = 'nicom-ai-joe-memory-v1';
 const MEMORY_LIMIT = 300;
 
@@ -57,8 +54,6 @@ function saveMemory(memory) {
   try { localStorage.setItem(MEMORY_KEY, JSON.stringify(memory.slice(-MEMORY_LIMIT))); } catch (e) {}
 }
 
-// Pre-trade features (known at selection time).
-// mom: 24h momentum %, range: 24h volatility proxy % (high-low span), vol: quote volume rank proxy.
 function candidateFeatures(t) {
   return [t.momentum, t.range, t.volScore];
 }
@@ -81,22 +76,20 @@ function normaliseFeatures(vecs) {
   return vecs.map(function (v) { return v.map(function (x, d) { return (x - means[d]) / stds[d]; }); });
 }
 
-// Score a candidate: + similarity to winners, - similarity to losers.
 function patternScore(candFeaturesArr, memory) {
   const past = memory.map(function (m) { return candidateFeatures(m); });
   const all = past.concat([candFeaturesArr]);
   const norm = normaliseFeatures(all);
   const cand = norm[norm.length - 1];
-  let winnerScore = 0, loserScore = 0, w = 0, l = 0;
+  let winnerScore = 0, loserScore = 0;
   memory.forEach(function (m, i) {
     const sim = 1 / (1 + featureDistance(cand, norm[i]));
-    if (m.pnl > 0) { winnerScore += sim * m.pnl; w++; }
-    else { loserScore += sim * Math.abs(m.pnl); l++; }
+    if (m.pnl > 0) winnerScore += sim * m.pnl;
+    else loserScore += sim * Math.abs(m.pnl);
   });
-  return { score: winnerScore - loserScore, w: w, l: l };
+  return winnerScore - loserScore;
 }
 
-// Post-trade analysis at close: extract the pattern the trade exhibited.
 function analyseTrade(t) {
   const samples = t.samples || [];
   const n = samples.length;
@@ -106,13 +99,11 @@ function analyseTrade(t) {
     if (move > maxUp) maxUp = move;
     if (move < maxDown) maxDown = move;
   });
-  // Early trend: slope over the first third of the samples.
   let earlySlope = 0;
   if (n >= 6) {
     const k = Math.max(2, Math.floor(n / 3));
     earlySlope = (samples[k] - samples[0]) / samples[0];
   }
-  // Volatility of the sampled path.
   let vol = 0;
   if (n >= 3) {
     for (let i = 1; i < n; i++) vol += Math.abs(samples[i] - samples[i - 1]) / samples[i - 1];
@@ -135,11 +126,6 @@ function analyseTrade(t) {
 }
 
 // ---- Feature: Stock Market Joe ------------------------------------------
-// Live data: Binance public REST API (no key required).
-// Session: 5 paper trades, each held 5-10 minutes, forced close at 10 minutes.
-// Learning: completed trades are analysed and stored; future selections are
-// scored against recognised winning and losing patterns.
-
 const BINANCE_BASE = 'https://api.binance.com';
 const SESSION_MS = 10 * 60 * 1000;
 const POLL_MS = 5000;
@@ -148,9 +134,17 @@ function renderStockMarketJoe(root) {
   root.innerHTML =
     '<h2>Stock Market Joe</h2>' +
     '<p class="subtitle">Live crypto market data (Binance). Paper trades only: no real money.</p>' +
+    '<div class="joe-toolbar">' +
+    '  <button id="joe-backup" class="joe-btn">Backup knowledge</button>' +
+    '  <button id="joe-reset" class="joe-btn joe-btn-danger">Reset data</button>' +
+    '</div>' +
     '<div class="joe-session" id="joe-session">' +
     '  <div class="joe-status" id="joe-status">Scanning the market and matching learned patterns...</div>' +
     '  <div class="joe-clock" id="joe-clock"></div>' +
+    '  <div class="joe-chart-box">' +
+    '    <div class="joe-chart-title">Session P&amp;L (all open trades, %)</div>' +
+    '    <canvas id="joe-chart" width="800" height="180"></canvas>' +
+    '  </div>' +
     '  <div class="stocks" id="joe-stocks"></div>' +
     '  <div class="joe-summary" id="joe-summary"></div>' +
     '  <div class="joe-insights" id="joe-insights"></div>' +
@@ -161,10 +155,14 @@ function renderStockMarketJoe(root) {
   const grid = root.querySelector('#joe-stocks');
   const summaryEl = root.querySelector('#joe-summary');
   const insightsEl = root.querySelector('#joe-insights');
+  const chartCanvas = root.querySelector('#joe-chart');
+  const backupBtn = root.querySelector('#joe-backup');
+  const resetBtn = root.querySelector('#joe-reset');
 
-  const memory = loadMemory();
+  let memory = loadMemory();
   let sessionStart = null;
   let trades = [];
+  let pnlHistory = []; // {t: ms since session start, v: total pnl}
 
   function fmt(n) { return '$' + n.toFixed(n < 1 ? 6 : 2); }
   function pnlClass(v) { return v >= 0 ? 'up' : 'down'; }
@@ -175,6 +173,43 @@ function renderStockMarketJoe(root) {
   }
   function remainingMs() { return Math.max(0, SESSION_MS - (Date.now() - sessionStart)); }
 
+  // -- Buttons ---------------------------------------------------------------
+  resetBtn.addEventListener('click', function () {
+    if (!confirm('Reset all of Joe\'s learned knowledge? This deletes the stored trade patterns and cannot be undone.')) return;
+    memory = [];
+    try { localStorage.removeItem(MEMORY_KEY); } catch (e) {}
+    renderInsights();
+    statusEl.textContent = 'Joe\'s knowledge has been reset. He will learn from scratch from the next trades.';
+  });
+
+  backupBtn.addEventListener('click', function () {
+    // Finalise learning: analyse any closed-but-unstored trades, then export.
+    trades.forEach(function (t) {
+      if (t.closed && t.pnl !== null && !t.stored) {
+        memory.push(analyseTrade(t));
+        t.stored = true;
+      }
+    });
+    saveMemory(memory);
+    const backup = {
+      app: 'Nicom-AI Stock Market Joe',
+      exportedAt: new Date().toISOString(),
+      tradeCount: memory.length,
+      trades: memory
+    };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'stock-market-joe-knowledge-' + new Date().toISOString().slice(0, 10) + '.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    statusEl.textContent = 'Knowledge analysed and backed up: ' + memory.length + ' trades exported as JSON.';
+  });
+
+  // -- Insights ---------------------------------------------------------------
   function renderInsights() {
     if (!memory.length) {
       insightsEl.innerHTML = '<p class="joe-note">Joe has no learned patterns yet. Insights appear after the first sessions.</p>';
@@ -203,9 +238,64 @@ function renderStockMarketJoe(root) {
       describe(wins, 'Profitable patterns') +
       describe(losses, 'Patterns to avoid') +
       '</ul>' +
-      '<p class="joe-note">Selection now favours candidates resembling past winners and skips those resembling past losers.</p>';
+      '<p class="joe-note">Selection favours candidates resembling past winners and skips those resembling past losers.</p>';
   }
 
+  // -- Live P&L chart ---------------------------------------------------------
+  function drawChart() {
+    const ctx = chartCanvas.getContext('2d');
+    const w = chartCanvas.width, h = chartCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = '#12182e';
+    ctx.fillRect(0, 0, w, h);
+
+    // Zero line
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    if (pnlHistory.length < 2) {
+      ctx.fillStyle = '#9aa5bd';
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.fillText('Collecting data...', 12, h / 2 - 8);
+      return;
+    }
+    const values = pnlHistory.map(function (p) { return p.v; });
+    const maxAbs = Math.max(0.001, Math.max.apply(null, values.map(Math.abs)));
+    const yFor = function (v) { return h / 2 - (v / maxAbs) * (h / 2 - 10); };
+    const xFor = function (t) { return (t / SESSION_MS) * w; };
+
+    // Fill under/over the zero line
+    ctx.beginPath();
+    pnlHistory.forEach(function (p, i) {
+      const x = xFor(p.t), y = yFor(p.v);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    });
+    const last = pnlHistory[pnlHistory.length - 1];
+    ctx.strokeStyle = last.v >= 0 ? '#3ecf8e' : '#ff5c6c';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Current value label
+    ctx.fillStyle = last.v >= 0 ? '#3ecf8e' : '#ff5c6c';
+    ctx.font = 'bold 13px system-ui, sans-serif';
+    ctx.fillText((last.v >= 0 ? '+' : '') + (last.v * 100).toFixed(2) + '%', w - 70, last.v >= 0 ? 16 : h - 8);
+  }
+
+  function recordPnlPoint() {
+    if (sessionStart === null) return;
+    const total = trades.reduce(function (sum, t) {
+      return sum + (t.closed && t.pnl !== null ? t.pnl : tradePnl(t));
+    }, 0);
+    pnlHistory.push({ t: Date.now() - sessionStart, v: total });
+    drawChart();
+  }
+
+  // -- Trading ------------------------------------------------------------------
   async function pickTrades() {
     const res = await fetch(BINANCE_BASE + '/api/v3/ticker/24hr');
     if (!res.ok) throw new Error('Market data unavailable (HTTP ' + res.status + ')');
@@ -232,11 +322,8 @@ function renderStockMarketJoe(root) {
       .sort(function (a, b) { return Math.abs(b.momentum) - Math.abs(a.momentum); })
       .slice(0, 15);
 
-    // Pattern-aware selection: score each candidate against learned history,
-    // skip clear loser-lookalikes, take the best 5 remaining.
     const scored = candidates.map(function (c) {
-      const ps = patternScore(candidateFeatures(c), memory);
-      return Object.assign({ patternScore: ps.score, skipped: false }, c);
+      return Object.assign({ patternScore: patternScore(candidateFeatures(c), memory), skipped: false }, c);
     });
     const avoided = [];
     let chosen = [];
@@ -245,11 +332,9 @@ function renderStockMarketJoe(root) {
       if (memory.length >= 10 && c.patternScore < 0) { c.skipped = true; avoided.push(c.symbol); continue; }
       chosen.push(c);
     }
-    // Fall back to skipped candidates if fewer than 5 remain.
     for (let i = 0; i < scored.length && chosen.length < 5; i++) {
       if (!scored[i].skipped && chosen.indexOf(scored[i]) === -1) chosen.push(scored[i]);
     }
-
     if (avoided.length) {
       statusEl.textContent = 'Pattern filter avoided: ' + avoided.slice(0, 4).join(', ') + (avoided.length > 4 ? '...' : '');
     }
@@ -270,6 +355,7 @@ function renderStockMarketJoe(root) {
         lastPrice: c.lastPrice,
         samples: [c.lastPrice],
         closed: false,
+        stored: false,
         exitPrice: null,
         pnl: null
       };
@@ -312,6 +398,7 @@ function renderStockMarketJoe(root) {
         t.exitPrice = t.lastPrice;
         t.pnl = tradePnl(t);
         memory.push(analyseTrade(t));
+        t.stored = true;
         closedAny = true;
       }
     });
@@ -349,6 +436,7 @@ function renderStockMarketJoe(root) {
       }
       closeExpired();
       render();
+      recordPnlPoint();
       if (sessionDone()) {
         statusEl.textContent = 'Session complete. All paper trades analysed and stored for future pattern matching.';
         renderSummary();
@@ -374,12 +462,14 @@ function renderStockMarketJoe(root) {
   let clockTimer = null;
 
   renderInsights();
+  drawChart();
   pickTrades().then(function (picked) {
     trades = picked;
     sessionStart = Date.now();
     if (!statusEl.textContent) statusEl.textContent = 'Live paper trading session running. 5 trades selected by momentum and learned patterns.';
     render();
     renderSummary();
+    recordPnlPoint();
     pollTimer = setInterval(poll, POLL_MS);
     clockTimer = setInterval(tickClock, 1000);
     tickClock();
