@@ -218,7 +218,7 @@ function renderMarketSimulator(root, config) {
 
   function renderInsights() {
     if (!memory.length) {
-      insightsEl.innerHTML = '<p class="joe-note">' + appName + ' has no learned patterns yet. Insights appear after the first sessions.</p>';
+      insightsEl.innerHTML = '<p class="joe-note">' + appName + ' has no learned patterns yet. Insights appear after the first sessions.</p>' + (confidence === null ? '' : '<p class="joe-note"><strong>Kenny prediction score:</strong> ' + confidence.toFixed(0) + '% (baseline 50%; adjusted as predictions resolve).</p>');
       return;
     }
     const wins = memory.filter(function (m) { return m.pnl > 0; });
@@ -454,7 +454,18 @@ function renderMarketSimulator(root, config) {
           const prices = await res.json();
           prices.forEach(function (p) {
             const t = trades.find(function (x) { return x.symbol === p.symbol; });
-            if (t) { t.lastPrice = parseFloat(p.price); t.samples.push(t.lastPrice); }
+            if (t) {
+              t.lastPrice = parseFloat(p.price);
+              t.samples.push(t.lastPrice);
+              if (!t.closed && t.samples.length >= 4) {
+                const sig = t.samples[t.samples.length - 1] > t.samples[t.samples.length - 4] ? 'BUY' :
+                  (t.samples[t.samples.length - 1] < t.samples[t.samples.length - 4] ? 'SELL' : 'HOLD');
+                if (sig !== t.lastSignal) {
+                  t.lastSignal = sig;
+                  statusEl.textContent = appName + ' signal notification: ' + t.symbol + ' — ' + sig + ' (paper signal only).';
+                }
+              }
+            }
           });
         }
       }
