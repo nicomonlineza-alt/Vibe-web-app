@@ -209,7 +209,7 @@ function renderStockMarketJoe(root) {
 
   function renderInsights() {
     if (!memory.length) {
-      insightsEl.innerHTML = '<p class="joe-note">Joe has no learned patterns yet. Insights appear after the first sessions.</p>';
+      insightsEl.innerHTML = '<p class="joe-note">' + appName + ' has no learned patterns yet. Insights appear after the first sessions.</p>';
       return;
     }
     const wins = memory.filter(function (m) { return m.pnl > 0; });
@@ -331,7 +331,9 @@ function renderStockMarketJoe(root) {
       const durationMs = (5 + Math.random() * 5) * 60 * 1000;
       return {
         symbol: c.symbol,
-        direction: c.momentum >= 0 ? 'LONG' : 'SHORT',
+        direction: (c.momentum + candleBias * 0.35) >= 0 ? 'LONG' : 'SHORT',
+        candlePattern: candlePattern,
+        candleBias: candleBias,
         entryPrice: c.lastPrice,
         entryTime: Date.now(),
         entryMomentum: c.momentum,
@@ -347,7 +349,7 @@ function renderStockMarketJoe(root) {
         exitPrice: null,
         pnl: null
       };
-    });
+    }));
   }
 
   function tradePnl(t) {
