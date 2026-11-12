@@ -1,3 +1,4 @@
+import React from 'react';
 import BlackDashboard from './BlackDashboard.jsx';
 
 export default function App() {
