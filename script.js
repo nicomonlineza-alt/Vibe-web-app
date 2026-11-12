@@ -183,11 +183,11 @@ function renderMarketSimulator(root, config) {
   function remainingMs() { return Math.max(0, SESSION_MS - (Date.now() - sessionStart)); }
 
   resetBtn.addEventListener('click', function () {
-    if (!confirm('Reset all of Joe\'s learned knowledge? This deletes the stored trade patterns and cannot be undone.')) return;
+    if (!confirm('Reset all of ' + appName + '\'s learned knowledge? This deletes the stored trade patterns and cannot be undone.')) return;
     memory = [];
     try { localStorage.removeItem(memoryKey); if (config.scoreKey) { confidence = 50; localStorage.setItem(config.scoreKey, '50'); } } catch (e) {}
     renderInsights();
-    statusEl.textContent = 'Joe\'s knowledge has been reset. He will learn from scratch from the next trades.';
+    statusEl.textContent = appName + '\'s knowledge has been reset. New patterns will be learned from the next session.';
   });
 
   backupBtn.addEventListener('click', function () {
