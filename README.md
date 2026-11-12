@@ -11,18 +11,30 @@ the top left.
 ### Stock Market Joe
 
 A paper trading feature powered by live market data from the Binance public API
-(no API key required):
+(no API key required), with a self-learning pattern module:
 
-1. On launch it scans liquid USDT pairs and selects the 5 with the strongest
-   24-hour momentum.
-2. Each trade is opened as LONG (positive momentum) or SHORT (negative momentum)
-   with a holding period randomly set between 5 and 10 minutes.
-3. Prices refresh every 5 seconds and each trade shows live P&L and a countdown.
-4. Trades close automatically at the end of their holding period, and all open
-   trades are force-closed at the 10-minute session cut-off.
-5. A session summary reports total paper profit and the number of winning trades.
+1. On launch it scans liquid USDT pairs and scores candidates against patterns
+   learned from previous paper trades.
+2. Candidates whose pre-trade profile resembles past losing trades are skipped
+   when the trade history is mature enough (10 or more stored trades).
+3. Five trades are opened as LONG or SHORT with holding periods between 5 and
+   10 minutes.
+4. Prices refresh every 5 seconds; each trade shows live P&L, a countdown and,
+   once learning is active, its pattern-match score.
+5. At close, each trade is analysed (entry momentum, volatility range, early
+   trend slope, price path volatility, maximum favourable and adverse moves)
+   and stored in browser memory (localStorage, last 300 trades).
+6. All open trades are force-closed at the 10-minute session cut-off, followed
+   by a session summary and an insights panel describing profitable patterns
+   and patterns to avoid.
 
 All trades are paper trades. No real money is involved.
+
+## Learning limitations
+
+The pattern module is a lightweight similarity model running in the browser.
+It learns from its own small sample of short paper trades and cannot guarantee
+profits. Treat its insights as experimental.
 
 ## Stack
 

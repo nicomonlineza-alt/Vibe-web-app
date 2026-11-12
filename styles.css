@@ -1,7 +1,4 @@
 [object Object],[object Object]
-.joe-session { display: flex; flex-direction: column; gap: 1rem; }
-.joe-status { color: var(--muted); font-size: 0.95rem; }
-.joe-clock { font-weight: 600; font-size: 1.05rem; }
-.joe-meta { color: var(--muted); font-size: 0.82rem; }
-.joe-summary { background: var(--surface-2); border-radius: var(--radius); padding: 1rem 1.25rem; font-size: 0.95rem; }
-.stock-card .sym .up, .stock-card .sym .down { font-size: 0.72rem; font-weight: 700; margin-left: 0.35rem; }
+.joe-insights h3 { font-size: 1.05rem; margin-bottom: 0.35rem; }
+.joe-list { margin: 0.35rem 0 0.5rem 1.25rem; color: var(--muted); font-size: 0.88rem; }
+.joe-insights { background: var(--surface-2); border-radius: var(--radius); padding: 1rem 1.25rem; }
