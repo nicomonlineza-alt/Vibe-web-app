@@ -4,7 +4,8 @@ const content = document.getElementById('app-content');
 const closeBtn = document.getElementById('app-close');
 
 const apps = {
-  'stock-joe': renderStockMarketJoe
+  'stock-joe': renderStockMarketJoe,
+  'stock-kenny': renderStockMarketKenny
 };
 
 document.querySelectorAll('.feature-tile[data-app]').forEach(function (tile) {
@@ -44,14 +45,16 @@ closeBtn.addEventListener('click', function () {
 
 // ---- Learning module -----------------------------------------------------
 const MEMORY_KEY = 'nicom-ai-joe-memory-v1';
+const KENNY_MEMORY_KEY = 'nicom-ai-kenny-memory-v1';
+const KENNY_SCORE_KEY = 'nicom-ai-kenny-score-v1';
 const MEMORY_LIMIT = 300;
 
-function loadMemory() {
-  try { return JSON.parse(localStorage.getItem(MEMORY_KEY)) || []; }
+function loadMemory(key) {
+  try { return JSON.parse(localStorage.getItem(key || MEMORY_KEY)) || []; }
   catch (e) { return []; }
 }
-function saveMemory(memory) {
-  try { localStorage.setItem(MEMORY_KEY, JSON.stringify(memory.slice(-MEMORY_LIMIT))); } catch (e) {}
+function saveMemory(memory, key) {
+  try { localStorage.setItem(key || MEMORY_KEY, JSON.stringify(memory.slice(-MEMORY_LIMIT))); } catch (e) {}
 }
 
 function candidateFeatures(t) {
@@ -130,10 +133,15 @@ const BINANCE_BASE = 'https://api.binance.com';
 const SESSION_MS = 10 * 60 * 1000;
 const POLL_MS = 5000;
 
-function renderStockMarketJoe(root) {
+function renderStockMarketJoe(root) { renderMarketSimulator(root, { name: 'Joe', memoryKey: MEMORY_KEY, duration: 10 * 60 * 1000, scoreKey: null }); }
+function renderStockMarketKenny(root) { renderMarketSimulator(root, { name: 'Kenny', memoryKey: KENNY_MEMORY_KEY, duration: 2 * 60 * 1000, scoreKey: KENNY_SCORE_KEY }); }
+function renderMarketSimulator(root, config) {
+  const SESSION_MS = config.duration;
+  const appName = config.name;
+  const memoryKey = config.memoryKey;
   root.innerHTML =
-    '<h2>Stock Market Joe</h2>' +
-    '<p class="subtitle">Live crypto market data (Binance). Paper trades only: no real money.</p>' +
+    '<h2>Stock Market ' + appName + '</h2>' +
+    '<p class="subtitle">Binance crypto market data. Educational paper simulation only — no real-money trading.</p>' +
     '<div class="joe-toolbar">' +
     '  <button id="joe-backup" class="joe-btn">Backup knowledge</button>' +
     '  <button id="joe-reset" class="joe-btn joe-btn-danger">Reset data</button>' +
@@ -159,7 +167,8 @@ function renderStockMarketJoe(root) {
   const backupBtn = root.querySelector('#joe-backup');
   const resetBtn = root.querySelector('#joe-reset');
 
-  let memory = loadMemory();
+  let memory = loadMemory(memoryKey);
+  let confidence = config.scoreKey ? Number(localStorage.getItem(config.scoreKey) || 50) : null;
   let sessionStart = null;
   let trades = [];
   let pnlHistory = [];
@@ -176,7 +185,7 @@ function renderStockMarketJoe(root) {
   resetBtn.addEventListener('click', function () {
     if (!confirm('Reset all of Joe\'s learned knowledge? This deletes the stored trade patterns and cannot be undone.')) return;
     memory = [];
-    try { localStorage.removeItem(MEMORY_KEY); } catch (e) {}
+    try { localStorage.removeItem(memoryKey); } catch (e) {}
     renderInsights();
     statusEl.textContent = 'Joe\'s knowledge has been reset. He will learn from scratch from the next trades.';
   });
@@ -188,7 +197,7 @@ function renderStockMarketJoe(root) {
         t.stored = true;
       }
     });
-    saveMemory(memory);
+    saveMemory(memory, memoryKey);
     const backup = {
       app: 'Nicom-AI Stock Market Joe',
       exportedAt: new Date().toISOString(),
@@ -228,14 +237,14 @@ function renderStockMarketJoe(root) {
     }
 
     insightsEl.innerHTML =
-      '<h3>Joe\'s learned insights</h3>' +
+      '<h3>' + appName + '\'s learned insights</h3>' +
       '<p class="joe-note">Based on ' + memory.length + ' completed paper trades: ' + winRate +
       '% win rate, average win +' + (avgWin * 100).toFixed(2) + '%, average loss ' + (avgLoss * 100).toFixed(2) + '%.</p>' +
       '<ul class="joe-list">' +
       describe(wins, 'Profitable patterns') +
       describe(losses, 'Patterns to avoid') +
       '</ul>' +
-      '<p class="joe-note">Selection favours candidates resembling past winners and skips those resembling past losers.</p>';
+      '<p class="joe-note">Selection favours candidates resembling past winners and skips those resembling past losers.</p>' + (confidence === null ? '' : '<p class="joe-note"><strong>Kenny prediction score:</strong> ' + confidence.toFixed(0) + '% (starts at 50%, changes by 2 points per prediction; capped at 0–100%).</p>');
   }
 
   function drawChart() {
@@ -327,8 +336,24 @@ function renderStockMarketJoe(root) {
       statusEl.textContent = 'Pattern filter avoided: ' + avoided.slice(0, 4).join(', ') + (avoided.length > 4 ? '...' : '');
     }
 
-    return chosen.map(function (c) {
-      const durationMs = (5 + Math.random() * 5) * 60 * 1000;
+    return Promise.all(chosen.map(async function (c) {
+      let candlePattern = 'mixed';
+      let candleBias = 0;
+      try {
+        const kr = await fetch(BINANCE_BASE + '/api/v3/klines?symbol=' + encodeURIComponent(c.symbol) + '&interval=1m&limit=2');
+        if (kr.ok) {
+          const ks = await kr.json(), a = ks[ks.length - 1], b = ks[ks.length - 2];
+          const o = +a[1], h = +a[2], l = +a[3], cl = +a[4], po = +b[1], pc = +b[4];
+          const range = Math.max(h - l, 1e-12), body = Math.abs(cl - o);
+          if (cl > o && pc < po && cl >= po && o <= pc) { candlePattern = 'bullish engulfing'; candleBias = 1; }
+          else if (cl < o && pc > po && o >= pc && cl <= po) { candlePattern = 'bearish engulfing'; candleBias = -1; }
+          else if ((Math.min(o,cl)-l)/range > .58 && body/range < .3) { candlePattern = 'lower-wick rejection'; candleBias = 1; }
+          else if ((h-Math.max(o,cl))/range > .58 && body/range < .3) { candlePattern = 'upper-wick rejection'; candleBias = -1; }
+          else if (cl > o) { candlePattern = 'bullish candle'; candleBias = 1; }
+          else if (cl < o) { candlePattern = 'bearish candle'; candleBias = -1; }
+        }
+      } catch(e) {}
+      const durationMs = SESSION_MS;
       return {
         symbol: c.symbol,
         direction: (c.momentum + candleBias * 0.35) >= 0 ? 'LONG' : 'SHORT',
@@ -374,7 +399,7 @@ function renderStockMarketJoe(root) {
         '<div class="joe-meta">Entry ' + fmt(t.entryPrice) + '</div>' +
         '<div class="joe-meta">P&amp;L: <span class="' + pnlClass(pnl) + '">' + (pnl >= 0 ? '+' : '') + pct + '%</span></div>' +
         learned +
-        '<div class="joe-meta">' + left + '</div>';
+        '<div class="joe-meta">' + left + '</div>' + '<div class="joe-meta">Candle setup: ' + (t.candlePattern || 'observing') + '</div>';
       grid.appendChild(card);
     });
   }
@@ -407,7 +432,7 @@ function renderStockMarketJoe(root) {
       '<strong>Session result:</strong> ' +
       '<span class="' + pnlClass(total) + '">' + (total >= 0 ? '+' : '') + (total * 100).toFixed(2) + '%</span>' +
       ' (' + closedCount + '/' + trades.length + ' closed, ' + wins + ' profitable). ' +
-      'Aim: maximum paper profit before the 10-minute cut-off.';
+      'Two-minute educational paper simulation. Results are uncertain; profit is not guaranteed.';
   }
 
   async function poll() {
