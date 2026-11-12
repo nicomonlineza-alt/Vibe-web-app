@@ -4,10 +4,13 @@ A web application for Nicom Online, built collaboratively with Vibe.
 
 ## Overview
 
-Nicom-AI is a static single-page application showcasing AI services for Nicom Online:
+Nicom-AI is a single-page application with one homepage. All features are launched
+as tiles from the main page, and each opens in a central app window (about two
+thirds of the screen) with a close button at the top left.
 
-- Landing page with feature highlights
-- Interactive rule-based chat demo
+### Features
+
+- Stock Market Joe: market snapshot with simulated live prices and sparkline charts.
 
 ## Stack
 
